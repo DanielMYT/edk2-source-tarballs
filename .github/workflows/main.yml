@@ -1,0 +1,53 @@
+name: Check for new EDK2 release and produce tarball
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  main:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install git from APT
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install git
+
+      - name: Check out EDK2 repo
+        uses: actions/checkout@v4
+        with:
+          repository: tianocore/edk2
+          path: edk2
+
+      - name: All remaining tasks
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Change to checked out edk2 source directory.
+          cd edk2
+          # Fetch the tags.
+          git fetch --tags
+          # Determine the latest tag.
+          tag=$(git describe --tags $(git rev-list --tags --max-count=1))
+          # Don't continue if we already have a release for the tag.
+          if gh release view $tag &>/dev/null; then
+            echo "We already have $tag. No need to do anything. Exiting." >&2
+            exit 0
+          fi
+          # Checkout the tag.
+          git checkout $tag
+          # Get submodules.
+          git submodule update --init --recursive
+          # Remove .git directory and pointers to it.
+          rm -rf .git
+          find . -type f -name .git -delete
+          # Rename edk2 source directory to tag name.
+          cd ..
+          mv edk2 $tag
+          # Create tarball and use maximum XZ compression on it.
+          tar -cvf $tag.tar $tag
+          xz -v9e $tag.tar
+          # Publish release with this file as the asset.
+          gh release create $tag --title $tag $tag.tar.xz
