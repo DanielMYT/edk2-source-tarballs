@@ -32,7 +32,7 @@ jobs:
           # Determine the latest tag.
           tag=$(git describe --tags $(git rev-list --tags --max-count=1))
           # Don't continue if we already have a release for the tag.
-          if gh release view $tag --repo tianocore/edk2 &>/dev/null; then
+          if gh release view $tag --repo DanielMYT/edk2-source-tarballs &>/dev/null; then
             echo "We already have $tag. No need to do anything. Exiting." >&2
             exit 0
           fi
